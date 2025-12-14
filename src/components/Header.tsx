@@ -11,6 +11,7 @@ export function Header() {
       <nav className="flex gap-4">
         <Link href="/" className="hover:underline">Home</Link>
         <Link href="/create-category" className="hover:underline">Create Category</Link>
+        <Link href="/create-book" className="hover:underline">Publish Book</Link>
       </nav>
       <div className="flex items-center gap-4">
         {user ? (
