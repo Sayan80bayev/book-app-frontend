@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { useMutation } from "@apollo/client/react";
 import { REGISTER_USER } from "@/graphql/mutations";
 import { useStore } from "@/stores/useStore";
@@ -31,6 +32,7 @@ interface RegisterVariables {
 }
 
 export default function RegisterPage() {
+  const router = useRouter();
   const { setUser } = useStore();
   const [form, setForm] = useState<RegisterVariables["input"]>({
     username: "",
@@ -40,7 +42,6 @@ export default function RegisterPage() {
     nationality: "",
   });
 
-  // useMutation с generic типами: <Response, Variables>
   const [registerUser, { loading, error }] = useMutation<RegisterResponse, RegisterVariables>(REGISTER_USER);
 
   const handleRegister = async () => {
@@ -50,6 +51,7 @@ export default function RegisterPage() {
       if (!data) return;
       const { user, token } = data.registerUser;
       setUser(user, token);
+      router.push("/");
     } catch (err) {
       console.error(err);
     }

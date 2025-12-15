@@ -82,7 +82,9 @@ export default function LoginPage() {
       >
         {loading ? "Logging in..." : "Login"}
       </button>
-
+      <p className="text-sm text-center text-zinc-600 dark:text-zinc-400">
+        Do not have an account? <a href="/register" className="font-medium underline">Register</a>
+      </p>
       {error && <p className="text-sm text-red-500">{error.message}</p>}
     </div>
   );

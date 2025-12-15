@@ -4,7 +4,14 @@ import { useState } from "react";
 import { useQuery, useMutation } from "@apollo/client/react";
 import { useStore } from "@/stores/useStore";
 import { useParams, useRouter } from "next/navigation";
-import { GET_BOOK, GET_REVIEWS_BY_BOOK, GET_USER, GET_CATEGORIES, GET_USERS, GET_BOOKS } from "@/graphql/queries";
+import {
+  GET_BOOK,
+  GET_REVIEWS_BY_BOOK,
+  GET_USER,
+  GET_CATEGORIES,
+  GET_USERS,
+  GET_BOOKS,
+} from "@/graphql/queries";
 import Link from "next/link";
 import { DELETE_BOOK, CREATE_REVIEW, DELETE_REVIEW } from "@/graphql/mutations";
 import type {
@@ -26,11 +33,11 @@ export default function BookPage() {
     variables: { id },
     skip: !id,
   });
-  
-  const { data: reviewsData, loading: reviewsLoading } = useQuery<ReviewsByBookQueryData, { bookId: string }>(GET_REVIEWS_BY_BOOK, {
-    variables: { bookId: id },
-    skip: !id,
-  });
+
+  const { data: reviewsData, loading: reviewsLoading } = useQuery<ReviewsByBookQueryData, { bookId: string }>(
+    GET_REVIEWS_BY_BOOK,
+    { variables: { bookId: id }, skip: !id }
+  );
 
   const { data: categoriesData } = useQuery<CategoriesQueryData>(GET_CATEGORIES);
   const { data: usersData } = useQuery<UsersQueryData>(GET_USERS);
@@ -42,76 +49,96 @@ export default function BookPage() {
     variables: { id: authorId as string },
     skip: !authorId,
   });
-  
-  if (bookLoading) return <div>Loading book...</div>;
-  if (bookError) return <div>Error loading book: {String(bookError.message)}</div>;
-  if (!bookData?.book) return <div>Book not found</div>;
 
-  const book: BookType = bookData!.book as BookType;
-  const reviews: ReviewType[] = reviewsData?.reviewsByBook || [];
+  if (bookLoading) return <PageState text="Loading book…" />;
+  if (bookError) return <PageState text="Error loading book" error />;
+  if (!bookData?.book) return <PageState text="Book not found" />;
+
+  const book = bookData.book;
+  const reviews = reviewsData?.reviewsByBook || [];
 
   const hasReviewed = currentUser ? reviews.some((r) => r.userId === currentUser.id) : false;
 
   const categoryMap = new Map<string, Category>();
-  categoriesData?.categories.forEach((c: Category) => categoryMap.set(c.id, c));
+  categoriesData?.categories.forEach((c) => categoryMap.set(c.id, c));
 
   const userMap = new Map<string, UserType>();
-  usersData?.users.forEach((u: UserType) => userMap.set(u.id, u));
+  usersData?.users.forEach((u) => userMap.set(u.id, u));
 
   return (
-    <div className="mx-auto max-w-4xl p-6">
-      <section className="mb-8">
-        <h1 className="text-3xl font-bold mb-2">{book.title}</h1>
-        <p className="text-sm text-zinc-600 mb-4">Published: {book.publishYear}</p>
-        {authorData?.user && (
-          <p className="text-sm text-zinc-700 mb-4">By: {authorData.user.username}</p>
-        )}
-        <p className="whitespace-pre-line">{book.description}</p>
-        {book.categories?.length > 0 && (
-          <div className="mt-4 flex gap-2 flex-wrap">
-            {book.categories.map((cId: string) => (
-              <span key={cId} className="text-xs px-2 py-1 bg-zinc-800 text-white rounded">{categoryMap.get(cId)?.title ?? cId}</span>
-            ))}
-          </div>
-        )}
+    <div className="mx-auto max-w-5xl px-4 py-8">
+      {/* Book card */}
+      <section className="rounded-2xl bg-zinc-900/80 shadow-lg border border-zinc-800 p-6 mb-10">
+        <div className="flex flex-col gap-3">
+          <h1 className="text-4xl font-semibold tracking-tight text-zinc-100">{book.title}</h1>
 
-        <AuthorControls book={book} />
+          <div className="flex flex-wrap items-center gap-4 text-sm text-zinc-400">
+            <span>Published {book.publishYear}</span>
+            {authorData?.user && <span>by {authorData.user.username}</span>}
+          </div>
+
+          <p className="mt-4 leading-relaxed text-zinc-300 whitespace-pre-line">{book.description}</p>
+
+          {book.categories.map((cId) => {
+            const category = categoryMap.get(cId);
+            if (!category) return null;
+
+            return (
+              <span
+                key={cId}
+                className="inline-flex items-center gap-2 w-fit rounded-full border border-zinc-700 bg-zinc-800 px-3 py-1 text-xs text-zinc-300"
+              >
+                <span className="leading-none">{category.icon}</span>
+                <span className="whitespace-nowrap">{category.title}</span>
+              </span>
+            );
+        })}
+
+          <AuthorControls book={book} />
+        </div>
       </section>
 
-      <section>
-        <h2 className="text-2xl font-semibold mb-4">Reviews</h2>
-        {reviewsLoading && <div>Loading reviews...</div>}
-        {reviews.length === 0 && !reviewsLoading && <p>No reviews yet.</p>}
+      {/* Reviews */}
+      <section className="space-y-6 text-zinc-100">
+        <h2 className="text-2xl font-semibold">Reviews</h2>
+
+        {reviewsLoading && <PageState text="Loading reviews…" />}
+        {!reviewsLoading && reviews.length === 0 && (
+          <p className="text-sm text-zinc-400">No reviews yet.</p>
+        )}
+
         <ul className="space-y-4">
-          {reviews.map((r: ReviewType) => (
-            <li key={r.id} className="border rounded p-4">
-              <div className="flex items-center justify-between mb-2">
-                <strong>Rating: {r.rating}/5</strong>
-                <span className="text-sm text-zinc-500">{new Date(r.createdAt).toLocaleString()}</span>
-              </div>
-              {r.comment && <p className="mb-2">{r.comment}</p>}
-              <p className="text-xs text-zinc-600">User: {userMap.get(r.userId)?.username ?? r.userId}</p>
-              {currentUser && currentUser.id === r.userId && (
-                <div className="mt-2">
-                  <ReviewDeleteButton reviewId={r.id} bookId={book.id} />
+          {reviews.map((r) => (
+            <li key={r.id} className="rounded-xl border border-zinc-800 bg-zinc-900 p-4 shadow">
+              <div className="flex items-start justify-between">
+                <div className="space-y-1">
+                  <p className="font-medium text-zinc-100">⭐ {r.rating} / 5</p>
+                  <p className="text-xs text-zinc-500">
+                    {new Date(r.createdAt).toLocaleDateString()} · {userMap.get(r.userId)?.username}
+                  </p>
                 </div>
-              )}
+
+                {currentUser?.id === r.userId && (
+                  <ReviewDeleteButton reviewId={r.id} bookId={book.id} />
+                )}
+              </div>
+
+              {r.comment && <p className="mt-3 text-sm text-zinc-300">{r.comment}</p>}
             </li>
           ))}
         </ul>
-        
-        {/* Review form */}
-        <div className="mt-6">
+
+        <div className="pt-6 border-t border-zinc-800">
           {currentUser ? (
             currentUser.id === book.authorId ? (
-              <p className="text-sm text-zinc-600">Authors cannot review their own books.</p>
+              <InfoText text="Authors cannot review their own books." />
             ) : hasReviewed ? (
-              <p className="text-sm text-zinc-600">You have already reviewed this book.</p>
+              <InfoText text="You have already reviewed this book." />
             ) : (
               <ReviewForm bookId={book.id} />
             )
           ) : (
-            <p className="text-sm text-zinc-600">Please log in to write a review.</p>
+            <InfoText text="Please log in to write a review." />
           )}
         </div>
       </section>
@@ -119,78 +146,110 @@ export default function BookPage() {
   );
 }
 
-function DeleteButton({ bookId }: { bookId: string }) {
-  const [deleteBook, { loading }] = useMutation(DELETE_BOOK, { refetchQueries: [{ query: GET_BOOKS }], onError: (e: any) => console.error(e) });
-  const router = useRouter();
-
-  const handleDelete = async () => {
-    if (!confirm("Delete this book?")) return;
-    try {
-      await deleteBook({ variables: { id: bookId } });
-      router.push("/");
-    } catch (err) {
-      console.error(err);
-    }
-  };
-
+function PageState({ text, error }: { text: string; error?: boolean }) {
   return (
-    <div className="mt-4">
-      <button onClick={handleDelete} disabled={loading} className="px-3 py-1 rounded bg-red-600 text-white">
-        {loading ? "Deleting..." : "Delete Book"}
-      </button>
+    <div className={`text-center py-12 text-sm ${error ? "text-red-500" : "text-zinc-500"}`}>
+      {text}
     </div>
   );
 }
 
+function InfoText({ text }: { text: string }) {
+  return <p className="text-sm text-zinc-400">{text}</p>;
+}
+
 function AuthorControls({ book }: { book: BookType }) {
   const currentUser = useStore((s) => s.user);
-  if (!currentUser) return null;
-  if (currentUser.id !== book.authorId) return null;
+  if (!currentUser || currentUser.id !== book.authorId) return null;
+
   return (
-    <div className="flex gap-2 mt-4">
-      <Link href={`/book/${book.id}/edit`} className="px-3 py-1 rounded bg-blue-600 text-white">Edit</Link>
+    <div className="mt-6 flex gap-3">
+      <Link
+        href={`/book/${book.id}/edit`}
+        className="rounded-lg border border-zinc-700 px-4 py-2 text-sm text-zinc-200 hover:bg-zinc-800"
+      >
+        Edit
+      </Link>
       <DeleteButton bookId={book.id} />
     </div>
   );
 }
 
-function ReviewForm({ bookId }: { bookId: string }) {
-  const [rating, setRating] = useState<number>(5);
-  const [comment, setComment] = useState<string>("");
-  const [createReview, { loading, error }] = useMutation(CREATE_REVIEW, { refetchQueries: [{ query: GET_REVIEWS_BY_BOOK, variables: { bookId } }] });
+function DeleteButton({ bookId }: { bookId: string }) {
+  const [deleteBook, { loading }] = useMutation(DELETE_BOOK, {
+    refetchQueries: [{ query: GET_BOOKS }],
+  });
+  const router = useRouter();
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    try {
-      await createReview({ variables: { input: { bookId, rating: Number(rating), comment: comment || null } } });
-      setComment("");
-    } catch (err) {
-      console.error(err);
-    }
+  const handleDelete = async () => {
+    if (!confirm("Delete this book?")) return;
+    await deleteBook({ variables: { id: bookId } });
+    router.push("/");
   };
 
   return (
-    <form onSubmit={handleSubmit} className="mt-4 space-y-3">
+    <button
+      onClick={handleDelete}
+      disabled={loading}
+      className="rounded-lg bg-red-900/20 px-4 py-2 text-sm text-red-400 hover:bg-red-900/40"
+    >
+      {loading ? "Deleting…" : "Delete"}
+    </button>
+  );
+}
+
+function ReviewForm({ bookId }: { bookId: string }) {
+  const [rating, setRating] = useState(5);
+  const [comment, setComment] = useState("");
+
+  const [createReview, { loading, error }] = useMutation(CREATE_REVIEW, {
+    refetchQueries: [{ query: GET_REVIEWS_BY_BOOK, variables: { bookId } }],
+  });
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    await createReview({
+      variables: { input: { bookId, rating, comment: comment || null } },
+    });
+    setComment("");
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4 max-w-md">
       <div className="flex items-center gap-3">
-        <label className="text-sm">Rating</label>
-        <select value={rating} onChange={(e) => setRating(Number(e.target.value))} className="p-1 border rounded">
-          <option value={5}>5</option>
-          <option value={4}>4</option>
-          <option value={3}>3</option>
-          <option value={2}>2</option>
-          <option value={1}>1</option>
+        <label className="text-sm text-zinc-600">Rating</label>
+        <select
+          value={rating}
+          onChange={(e) => setRating(Number(e.target.value))}
+          className="rounded-md border border-zinc-700 bg-zinc-900 px-2 py-1 text-sm text-zinc-200"
+        >
+          {[5, 4, 3, 2, 1].map((v) => (
+            <option key={v} value={v}>
+              {v}
+            </option>
+          ))}
         </select>
       </div>
+
       <div>
-        <label className="text-sm block mb-1">Comment (optional)</label>
-        <textarea value={comment} onChange={(e) => setComment(e.target.value)} className="w-full p-2 border rounded h-24" />
+        <label className="mb-1 block text-sm text-zinc-600">Comment</label>
+        <textarea
+          value={comment}
+          onChange={(e) => setComment(e.target.value)}
+          className="w-full rounded-lg border border-zinc-700 bg-zinc-900 p-2 text-sm text-zinc-200"
+          rows={4}
+        />
       </div>
-      <div>
-        <button type="submit" disabled={loading} className="px-4 py-2 bg-green-600 text-white rounded">
-          {loading ? "Submitting..." : "Submit Review"}
-        </button>
-        {error && <p className="text-red-500 mt-2">{String((error as any).message)}</p>}
-      </div>
+
+      <button
+        type="submit"
+        disabled={loading}
+        className="rounded-lg bg-zinc-100 px-4 py-2 text-sm text-zinc-900 hover:bg-white"
+      >
+        {loading ? "Submitting…" : "Submit review"}
+      </button>
+
+      {error && <p className="text-sm text-red-500">{error.message}</p>}
     </form>
   );
 }
@@ -198,21 +257,20 @@ function ReviewForm({ bookId }: { bookId: string }) {
 function ReviewDeleteButton({ reviewId, bookId }: { reviewId: string; bookId: string }) {
   const [deleteReview, { loading }] = useMutation(DELETE_REVIEW, {
     refetchQueries: [{ query: GET_REVIEWS_BY_BOOK, variables: { bookId } }],
-    onError: (e: any) => console.error(e),
   });
 
   const handleDelete = async () => {
     if (!confirm("Delete this review?")) return;
-    try {
-      await deleteReview({ variables: { id: reviewId } });
-    } catch (err) {
-      console.error(err);
-    }
+    await deleteReview({ variables: { id: reviewId } });
   };
 
   return (
-    <button onClick={handleDelete} disabled={loading} className="px-2 py-1 text-sm bg-red-600 text-white rounded">
-      {loading ? "Deleting..." : "Delete"}
+    <button
+      onClick={handleDelete}
+      disabled={loading}
+      className="text-xs text-red-400 hover:text-red-300 hover:underline"
+    >
+      {loading ? "Deleting…" : "Delete"}
     </button>
   );
 }
