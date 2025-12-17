@@ -1,5 +1,4 @@
-// app/layout.tsx
-"use client"; // обязательно, чтобы ApolloProvider работал
+"use client";
 
 import { Header } from "@/components/Header";
 import { Geist, Geist_Mono } from "next/font/google";

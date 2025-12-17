@@ -17,7 +17,6 @@ interface Store {
 }
 
 export const useStore = create<Store>((set) => ({
-  // Do NOT read localStorage during module init — keep initial state identical on server and client
   user: null,
   token: null,
   setUser: (user, token) => {
@@ -40,7 +39,6 @@ export const useStore = create<Store>((set) => ({
     }
     set({ user: null, token: null });
   },
-  // call this from a client-only component (e.g. layout) inside useEffect
   initializeAuth: () => {
     if (typeof window === "undefined") return;
     try {

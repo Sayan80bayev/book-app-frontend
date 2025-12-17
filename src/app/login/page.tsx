@@ -49,7 +49,6 @@ export default function LoginPage() {
       const { user, token } = response.data.loginUser;
       setUser(user, token);
 
-      // 🔥 редирект после логина
       router.push("/");
     } catch (err) {
       console.error(err);
